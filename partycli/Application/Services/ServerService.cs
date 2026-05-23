@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using partycli.Application.Interfaces;
 using partycli.Domain;
 
@@ -9,19 +8,17 @@ namespace partycli.Application.Services;
 
 public class ServerService : IServerService
 {
-    private const string ServerListSettingName = "serverlist";
-
     private readonly IServerRepository serverRepository;
-    private readonly ISettingsStorage settingsStorage;
+    private readonly IStateStorage stateStorage;
     private readonly IActionLogger logger;
 
     public ServerService(
         IServerRepository serverRepository,
-        ISettingsStorage settingsStorage,
+        IStateStorage stateStorage,
         IActionLogger logger)
     {
         this.serverRepository = serverRepository;
-        this.settingsStorage = settingsStorage;
+        this.stateStorage = stateStorage;
         this.logger = logger;
     }
 
@@ -33,37 +30,47 @@ public class ServerService : IServerService
         return servers;
     }
 
-    public async Task<IReadOnlyList<Server>> FetchByCountryAsync(int countryId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<Server>> FetchAsync(
+        int? countryId,
+        int? protocolId,
+        CancellationToken cancellationToken)
     {
-        var servers = await serverRepository.GetServersAsync(VpnServerQuery.ByCountry(countryId), cancellationToken);
-        SaveServers(servers, $"Saved servers for country {countryId}");
-
-        return servers;
-    }
-
-    public async Task<IReadOnlyList<Server>> FetchByProtocolAsync(int protocolId, CancellationToken cancellationToken)
-    {
-        var servers = await serverRepository.GetServersAsync(VpnServerQuery.ByProtocol(protocolId), cancellationToken);
-        SaveServers(servers, $"Saved servers for protocol {protocolId}");
+        var servers = await serverRepository.GetServersAsync(
+            VpnServerQuery.WithFilters(countryId, protocolId),
+            cancellationToken);
+        SaveServers(servers, BuildFilteredAction(countryId, protocolId));
 
         return servers;
     }
 
     public IReadOnlyList<Server> GetLocal()
     {
-        var serializedServers = settingsStorage.GetValue(ServerListSettingName);
-
-        if (string.IsNullOrWhiteSpace(serializedServers))
-        {
-            return new List<Server>();
-        }
-
-        return JsonConvert.DeserializeObject<List<Server>>(serializedServers) ?? new List<Server>();
+        return stateStorage.GetServers();
     }
 
     private void SaveServers(IReadOnlyList<Server> servers, string action)
     {
-        settingsStorage.SetValue(ServerListSettingName, JsonConvert.SerializeObject(servers));
+        stateStorage.SaveServers(servers);
         logger.Log($"{action}. Total servers: {servers.Count}");
+    }
+
+    private static string BuildFilteredAction(int? countryId, int? protocolId)
+    {
+        if (countryId.HasValue && protocolId.HasValue)
+        {
+            return $"Saved servers for country {countryId.Value} and protocol {protocolId.Value}";
+        }
+
+        if (countryId.HasValue)
+        {
+            return $"Saved servers for country {countryId.Value}";
+        }
+
+        if (protocolId.HasValue)
+        {
+            return $"Saved servers for protocol {protocolId.Value}";
+        }
+
+        return "Saved all servers";
     }
 }

@@ -14,23 +14,7 @@ public class CliCommandsTests
 
         Assert.Contains(rootCommand.Subcommands, command => command.Name == "server_list");
         Assert.Contains(rootCommand.Subcommands, command => command.Name == "servers");
-        Assert.Contains(rootCommand.Subcommands, command => command.Name == "config");
-    }
-
-    [Fact]
-    public async Task CreateConfigCommandInvokesHandlerWithProvidedArguments()
-    {
-        var configService = new StubConfigService();
-        using var console = new ConsoleCapture();
-        var rootCommand = CliCommands.Create(
-            CreateServerListCommandHandler(new StubServerService()),
-            new ConfigCommandHandler(configService, new ConsoleOutput()));
-
-        var result = await rootCommand.Parse(["config", "server-list", "value.json"]).InvokeAsync();
-
-        Assert.Equal(0, result);
-        Assert.Equal("server-list", configService.LastName);
-        Assert.Equal("value.json", configService.LastValue);
+        Assert.DoesNotContain(rootCommand.Subcommands, command => command.Name == "config");
     }
 
     [Fact]
@@ -41,9 +25,7 @@ public class CliCommandsTests
             RemoteServers = new[] { TestData.CreateServer("fr1", 20, "online") }
         };
         using var console = new ConsoleCapture();
-        var rootCommand = CliCommands.Create(
-            CreateServerListCommandHandler(serverService),
-            new ConfigCommandHandler(new StubConfigService(), new ConsoleOutput()));
+        var rootCommand = CliCommands.Create(CreateServerListCommandHandler(serverService));
 
         var result = await rootCommand.Parse(["servers", "list", "--country", "france"]).InvokeAsync();
 
@@ -59,9 +41,7 @@ public class CliCommandsTests
             RemoteServers = new[] { TestData.CreateServer("tcp1", 20, "online") }
         };
         using var console = new ConsoleCapture();
-        var rootCommand = CliCommands.Create(
-            CreateServerListCommandHandler(serverService),
-            new ConfigCommandHandler(new StubConfigService(), new ConsoleOutput()));
+        var rootCommand = CliCommands.Create(CreateServerListCommandHandler(serverService));
 
         var result = await rootCommand.Parse(["servers", "list", "--protocol", "TCP"]).InvokeAsync();
 
@@ -69,11 +49,26 @@ public class CliCommandsTests
         Assert.Equal(5, serverService.LastProtocolId);
     }
 
+    [Fact]
+    public async Task CreateServersListCommandCombinesCountryAndProtocolFilters()
+    {
+        var serverService = new StubServerService
+        {
+            RemoteServers = new[] { TestData.CreateServer("fr-tcp1", 20, "online") }
+        };
+        using var console = new ConsoleCapture();
+        var rootCommand = CliCommands.Create(CreateServerListCommandHandler(serverService));
+
+        var result = await rootCommand.Parse(["servers", "list", "--country", "france", "--protocol", "TCP"]).InvokeAsync();
+
+        Assert.Equal(0, result);
+        Assert.Equal(74, serverService.LastCountryId);
+        Assert.Equal(5, serverService.LastProtocolId);
+    }
+
     private static RootCommand CreateRootCommand()
     {
-        return CliCommands.Create(
-            CreateServerListCommandHandler(new StubServerService()),
-            new ConfigCommandHandler(new StubConfigService(), new ConsoleOutput()));
+        return CliCommands.Create(CreateServerListCommandHandler(new StubServerService()));
     }
 
     private static ServerListCommandHandler CreateServerListCommandHandler(StubServerService serverService)

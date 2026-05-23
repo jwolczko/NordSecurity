@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Newtonsoft.Json;
 using partycli.Application.Interfaces;
 using partycli.Domain;
 
@@ -8,18 +7,16 @@ namespace partycli.Application.Services;
 
 public class LoggerService : IActionLogger
 {
-    private const string LogSettingName = "log";
+    private readonly IStateStorage stateStorage;
 
-    private readonly ISettingsStorage settingsStorage;
-
-    public LoggerService(ISettingsStorage settingsStorage)
+    public LoggerService(IStateStorage stateStorage)
     {
-        this.settingsStorage = settingsStorage;
+        this.stateStorage = stateStorage;
     }
 
     public void Log(string action)
     {
-        var currentLog = LoadCurrentLog();
+        var currentLog = new List<LogEntry>(stateStorage.GetLogs());
 
         currentLog.Add(new LogEntry
         {
@@ -27,18 +24,6 @@ public class LoggerService : IActionLogger
             Time = DateTime.Now
         });
 
-        settingsStorage.SetValue(LogSettingName, JsonConvert.SerializeObject(currentLog));
-    }
-
-    private List<LogEntry> LoadCurrentLog()
-    {
-        var serializedLog = settingsStorage.GetValue(LogSettingName);
-
-        if (string.IsNullOrWhiteSpace(serializedLog))
-        {
-            return new List<LogEntry>();
-        }
-
-        return JsonConvert.DeserializeObject<List<LogEntry>>(serializedLog) ?? new List<LogEntry>();
+        stateStorage.SaveLogs(currentLog);
     }
 }

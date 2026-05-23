@@ -11,13 +11,12 @@ public class VpnServerQuery
         return new VpnServerQuery();
     }
 
-    public static VpnServerQuery ByCountry(int countryId)
+    public static VpnServerQuery WithFilters(int? countryId, int? protocolId)
     {
-        return new VpnServerQuery { CountryId = countryId };
-    }
-
-    public static VpnServerQuery ByProtocol(int protocolId)
-    {
-        return new VpnServerQuery { ProtocolId = protocolId };
+        return new VpnServerQuery
+        {
+            CountryId = countryId,
+            ProtocolId = protocolId
+        };
     }
 }

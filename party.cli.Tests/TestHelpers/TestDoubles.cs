@@ -1,21 +1,32 @@
-using partycli.Application.Interfaces;
 using partycli.Domain;
+using partycli.Application.Interfaces;
 using System.Net;
 
 namespace party.cli.Tests.TestHelpers;
 
-internal class InMemorySettingsStorage : ISettingsStorage
+internal class InMemoryStateStorage : IStateStorage
 {
-    private readonly Dictionary<string, string> values = new(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyList<Server> servers = Array.Empty<Server>();
+    private IReadOnlyList<LogEntry> logs = Array.Empty<LogEntry>();
 
-    public string GetValue(string name)
+    public IReadOnlyList<Server> GetServers()
     {
-        return values.TryGetValue(name, out var value) ? value : string.Empty;
+        return servers;
     }
 
-    public void SetValue(string name, string value)
+    public void SaveServers(IReadOnlyList<Server> servers)
     {
-        values[name] = value;
+        this.servers = servers;
+    }
+
+    public IReadOnlyList<LogEntry> GetLogs()
+    {
+        return logs;
+    }
+
+    public void SaveLogs(IReadOnlyList<LogEntry> logs)
+    {
+        this.logs = logs;
     }
 }
 
@@ -68,7 +79,10 @@ internal class StubServerService : IServerService
         return Task.FromResult(RemoteServers);
     }
 
-    public Task<IReadOnlyList<Server>> FetchByCountryAsync(int countryId, CancellationToken cancellationToken)
+    public Task<IReadOnlyList<Server>> FetchAsync(
+        int? countryId,
+        int? protocolId,
+        CancellationToken cancellationToken)
     {
         if (ExceptionToThrow is not null)
         {
@@ -76,16 +90,6 @@ internal class StubServerService : IServerService
         }
 
         LastCountryId = countryId;
-        return Task.FromResult(RemoteServers);
-    }
-
-    public Task<IReadOnlyList<Server>> FetchByProtocolAsync(int protocolId, CancellationToken cancellationToken)
-    {
-        if (ExceptionToThrow is not null)
-        {
-            throw ExceptionToThrow;
-        }
-
         LastProtocolId = protocolId;
         return Task.FromResult(RemoteServers);
     }
@@ -99,24 +103,6 @@ internal class StubServerService : IServerService
 
         GetLocalCalled = true;
         return LocalServers;
-    }
-}
-
-internal class StubConfigService : IConfigService
-{
-    public string? LastName { get; private set; }
-    public string? LastValue { get; private set; }
-    public Exception? ExceptionToThrow { get; set; }
-
-    public void SetValue(string name, string value)
-    {
-        if (ExceptionToThrow is not null)
-        {
-            throw ExceptionToThrow;
-        }
-
-        LastName = name;
-        LastValue = value;
     }
 }
 

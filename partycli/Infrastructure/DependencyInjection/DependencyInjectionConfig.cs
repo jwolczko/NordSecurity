@@ -32,7 +32,7 @@ public static class DependencyInjectionConfig
     private static void RegisterInfrastructure(IServiceCollection services)
     {
         services.AddSingleton<HttpClient>();
-        services.AddSingleton<ISettingsStorage, SettingsStorage>();
+        services.AddSingleton<IStateStorage, JsonStateStorage>();
         services.AddSingleton<IServerFilterCatalog, NordVpnServerFilterCatalog>();
         services.AddSingleton<IServerRepository>(serviceProvider =>
         {
@@ -49,20 +49,17 @@ public static class DependencyInjectionConfig
     {
         services.AddSingleton<IActionLogger, LoggerService>();
         services.AddSingleton<IServerService, ServerService>();
-        services.AddSingleton<IConfigService, ConfigService>();
     }
 
     private static void RegisterPresentation(IServiceCollection services)
     {
         services.AddSingleton<ConsoleOutput>();
         services.AddSingleton<ServerListCommandHandler>();
-        services.AddSingleton<ConfigCommandHandler>();
         services.AddSingleton<RootCommand>(serviceProvider =>
         {
             var serverListCommandHandler = serviceProvider.GetRequiredService<ServerListCommandHandler>();
-            var configCommandHandler = serviceProvider.GetRequiredService<ConfigCommandHandler>();
 
-            return CliCommands.Create(serverListCommandHandler, configCommandHandler);
+            return CliCommands.Create(serverListCommandHandler);
         });
     }
 }

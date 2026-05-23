@@ -60,8 +60,8 @@ The goal of the refactoring was to introduce a lightweight Clean Architecture-in
    The code was split into several logical areas:
 
    - `Domain` - domain models such as `Server`, `LogEntry`, and `VpnServerQuery`.
-   - `Application` - application interfaces and services such as `ServerService`, `ConfigService`, and `LoggerService`.
-   - `Infrastructure` - technical implementations such as the NordVPN API client, configuration loading, and settings storage.
+   - `Application` - application interfaces and services such as `ServerService` and `LoggerService`.
+   - `Infrastructure` - technical implementations such as the NordVPN API client, configuration loading, and JSON state storage.
    - `Presentation/Cli` - CLI command definitions, command handlers, and console output.
 
 3. **Replaced Manual Argument Parsing with `System.CommandLine`**
@@ -80,6 +80,7 @@ The goal of the refactoring was to introduce a lightweight Clean Architecture-in
    - `partycli servers list`
    - `partycli servers list --country france`
    - `partycli servers list --protocol TCP`
+   - `partycli servers list --country france --protocol TCP`
    - `partycli servers list --local`
 
 4. **Added Dependency Injection**
@@ -98,8 +99,8 @@ The goal of the refactoring was to introduce a lightweight Clean Architecture-in
 
    `partycli-state.json` contains:
 
-   - `serverlist` - the stored server list,
-   - `log` - stored application logs.
+   - the stored server list,
+   - stored application logs.
 
 6. **Moved Endpoints to Configuration**
 
@@ -111,12 +112,11 @@ The goal of the refactoring was to introduce a lightweight Clean Architecture-in
 
    - `NordVpnServerRepository` handles only NordVPN API communication.
    - `NordVpnServerFilterCatalog` maps user-friendly filter names to NordVPN API identifiers.
-   - `SettingsStorage` handles only JSON runtime-state persistence.
+   - `JsonStateStorage` handles only JSON runtime-state persistence.
    - `ServerService` handles server-list use cases.
    - `LoggerService` handles action logging.
-   - `ConfigService` handles configuration updates.
    - `CliCommands` defines the CLI command structure.
-   - `ServerListCommandHandler` and `ConfigCommandHandler` handle user actions.
+   - `ServerListCommandHandler` handles user actions for server-list commands.
    - `ConsoleOutput` centralizes console output.
 
 8. **Introduced Asynchronous API Calls**
@@ -129,7 +129,7 @@ The goal of the refactoring was to introduce a lightweight Clean Architecture-in
 
 10. **Added Tests**
 
-    The repository contains a `party.cli.Tests` project with tests for the application, infrastructure, and presentation layers. The tests cover application services, CLI handlers, configuration loading, settings storage, and the NordVPN repository.
+    The repository contains a `party.cli.Tests` project with tests for the application, infrastructure, and presentation layers. The tests cover application services, CLI handlers, configuration loading, state storage, and the NordVPN repository.
 
 11. **Removed Legacy Project Metadata**
 

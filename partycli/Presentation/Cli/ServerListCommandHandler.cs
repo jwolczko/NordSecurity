@@ -43,11 +43,9 @@ public class ServerListCommandHandler
     {
         try
         {
-            var selectedSources = CountSelectedSources(local, country, protocol);
-
-            if (selectedSources > 1)
+            if (local && HasRemoteFilter(country, protocol))
             {
-                consoleOutput.WriteError("Use only one server source at a time.");
+                consoleOutput.WriteError("Use --local without country or protocol filters.");
 
                 return 1;
             }
@@ -90,14 +88,9 @@ public class ServerListCommandHandler
             return Task.FromResult(serverService.GetLocal());
         }
 
-        if (countryId.HasValue)
+        if (countryId.HasValue || protocolId.HasValue)
         {
-            return serverService.FetchByCountryAsync(countryId.Value, cancellationToken);
-        }
-
-        if (protocolId.HasValue)
-        {
-            return serverService.FetchByProtocolAsync(protocolId.Value, cancellationToken);
+            return serverService.FetchAsync(countryId, protocolId, cancellationToken);
         }
 
         return serverService.FetchAllAsync(cancellationToken);
@@ -145,25 +138,9 @@ public class ServerListCommandHandler
         return false;
     }
 
-    private static int CountSelectedSources(bool local, string country, string protocol)
+    private static bool HasRemoteFilter(string country, string protocol)
     {
-        var selectedSources = 0;
-
-        if (local)
-        {
-            selectedSources++;
-        }
-
-        if (!string.IsNullOrWhiteSpace(country))
-        {
-            selectedSources++;
-        }
-
-        if (!string.IsNullOrWhiteSpace(protocol))
-        {
-            selectedSources++;
-        }
-
-        return selectedSources;
+        return !string.IsNullOrWhiteSpace(country) ||
+               !string.IsNullOrWhiteSpace(protocol);
     }
 }

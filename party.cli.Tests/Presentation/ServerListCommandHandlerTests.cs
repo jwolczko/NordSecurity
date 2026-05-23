@@ -9,7 +9,7 @@ namespace party.cli.Tests.Presentation;
 public class ServerListCommandHandlerTests
 {
     [Fact]
-    public async Task HandleAsyncWhenMultipleSourcesAreSelectedReturnsErrorWithoutCallingService()
+    public async Task HandleAsyncWhenLocalIsCombinedWithRemoteFilterReturnsErrorWithoutCallingService()
     {
         var service = new StubServerService();
         var handler = CreateHandler(service);
@@ -20,7 +20,7 @@ public class ServerListCommandHandlerTests
         Assert.Equal(1, result);
         Assert.False(service.GetLocalCalled);
         Assert.False(service.FetchAllCalled);
-        Assert.Contains("Error: Use only one server source at a time.", console.Error.ToString());
+        Assert.Contains("Error: Use --local without country or protocol filters.", console.Error.ToString());
     }
 
     [Fact]
@@ -92,6 +92,24 @@ public class ServerListCommandHandlerTests
         Assert.Equal(0, result);
         Assert.Equal(5, service.LastProtocolId);
         Assert.Contains("Name: tcp1, Load: 11, Status: online", console.Output.ToString());
+    }
+
+    [Fact]
+    public async Task HandleAsyncWhenCountryAndProtocolAreUsedFetchesServersByBothFilters()
+    {
+        var service = new StubServerService
+        {
+            RemoteServers = new[] { TestData.CreateServer("fr-tcp1", 9, "online") }
+        };
+        var handler = CreateHandler(service);
+        using var console = new ConsoleCapture();
+
+        var result = await handler.HandleAsync(local: false, country: "france", protocol: "TCP", CancellationToken.None);
+
+        Assert.Equal(0, result);
+        Assert.Equal(74, service.LastCountryId);
+        Assert.Equal(5, service.LastProtocolId);
+        Assert.Contains("Name: fr-tcp1, Load: 9, Status: online", console.Output.ToString());
     }
 
     [Fact]

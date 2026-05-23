@@ -4,22 +4,19 @@ namespace partycli.Presentation.Cli;
 
 public static class CliCommands
 {
-    public static RootCommand Create(
-        ServerListCommandHandler serverListCommandHandler,
-        ConfigCommandHandler configCommandHandler)
+    public static RootCommand Create(ServerListCommandHandler serverListCommandHandler)
     {
         var rootCommand = new RootCommand("NordVPN server CLI");
 
         rootCommand.Subcommands.Add(CreateLegacyServerListCommand(serverListCommandHandler));
         rootCommand.Subcommands.Add(CreateServersCommand(serverListCommandHandler));
-        rootCommand.Subcommands.Add(CreateConfigCommand(configCommandHandler));
 
         return rootCommand;
     }
 
     private static Command CreateLegacyServerListCommand(ServerListCommandHandler handler)
     {
-        var command = new Command("server_list", "Fetch, save and display NordVPN servers");
+        var command = new Command("server_list", "Legacy command for fetching, saving and displaying NordVPN servers");
         var localOption = new Option<bool>("--local") { Description = "Display servers saved locally" };
         var franceOption = new Option<bool>("--france") { Description = "Fetch servers from France" };
         var tcpOption = new Option<bool>("--TCP") { Description = "Fetch servers that support TCP" };
@@ -66,29 +63,4 @@ public static class CliCommands
         return serversCommand;
     }
 
-    private static Command CreateConfigCommand(ConfigCommandHandler handler)
-    {
-        var command = new Command("config", "Set application configuration values");
-        var nameArgument = new Argument<string>("name")
-        {
-            Description = "Setting name, for example serverlist or log"
-        };
-        var valueArgument = new Argument<string>("value")
-        {
-            Description = "Setting value"
-        };
-
-        command.Arguments.Add(nameArgument);
-        command.Arguments.Add(valueArgument);
-
-        command.SetAction(parseResult =>
-        {
-            var name = parseResult.GetValue(nameArgument);
-            var value = parseResult.GetValue(valueArgument);
-
-            return handler.Handle(name, value);
-        });
-
-        return command;
-    }
 }

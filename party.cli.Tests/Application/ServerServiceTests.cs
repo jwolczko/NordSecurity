@@ -1,7 +1,5 @@
-using Newtonsoft.Json;
 using party.cli.Tests.TestHelpers;
 using partycli.Application.Services;
-using partycli.Domain;
 
 namespace party.cli.Tests.Application;
 
@@ -12,7 +10,7 @@ public class ServerServiceTests
     {
         var servers = new[] { TestData.CreateServer() };
         var repository = new RecordingServerRepository(servers);
-        var storage = new InMemorySettingsStorage();
+        var storage = new InMemoryStateStorage();
         var logger = new RecordingLogger();
         var service = new ServerService(repository, storage, logger);
 
@@ -22,22 +20,20 @@ public class ServerServiceTests
         var query = Assert.Single(repository.Queries);
         Assert.Null(query.CountryId);
         Assert.Null(query.ProtocolId);
-        var savedServers = JsonConvert.DeserializeObject<Server[]>(storage.GetValue("serverlist"));
-        Assert.NotNull(savedServers);
-        Assert.Single(savedServers);
+        Assert.Single(storage.GetServers());
         Assert.Single(logger.Actions);
         Assert.Equal("Saved all servers. Total servers: 1", logger.Actions[0]);
     }
 
     [Fact]
-    public async Task FetchByCountryAsyncUsesCountryQuery()
+    public async Task FetchAsyncUsesCountryQuery()
     {
         var repository = new RecordingServerRepository();
-        var storage = new InMemorySettingsStorage();
+        var storage = new InMemoryStateStorage();
         var logger = new RecordingLogger();
         var service = new ServerService(repository, storage, logger);
 
-        await service.FetchByCountryAsync(74, CancellationToken.None);
+        await service.FetchAsync(countryId: 74, protocolId: null, CancellationToken.None);
 
         var query = Assert.Single(repository.Queries);
         Assert.Equal(74, query.CountryId);
@@ -46,14 +42,14 @@ public class ServerServiceTests
     }
 
     [Fact]
-    public async Task FetchByProtocolAsyncUsesProtocolQuery()
+    public async Task FetchAsyncUsesProtocolQuery()
     {
         var repository = new RecordingServerRepository();
-        var storage = new InMemorySettingsStorage();
+        var storage = new InMemoryStateStorage();
         var logger = new RecordingLogger();
         var service = new ServerService(repository, storage, logger);
 
-        await service.FetchByProtocolAsync(5, CancellationToken.None);
+        await service.FetchAsync(countryId: null, protocolId: 5, CancellationToken.None);
 
         var query = Assert.Single(repository.Queries);
         Assert.Equal(5, query.ProtocolId);
@@ -65,7 +61,7 @@ public class ServerServiceTests
     public void GetLocalWhenStorageIsEmptyReturnsEmptyList()
     {
         var repository = new RecordingServerRepository();
-        var storage = new InMemorySettingsStorage();
+        var storage = new InMemoryStateStorage();
         var logger = new RecordingLogger();
         var service = new ServerService(repository, storage, logger);
 
@@ -77,10 +73,9 @@ public class ServerServiceTests
     [Fact]
     public void GetLocalWhenStorageContainsSerializedServersReturnsDeserializedList()
     {
-        var expected = new[] { TestData.CreateServer("uk1", 15, "online") };
         var repository = new RecordingServerRepository();
-        var storage = new InMemorySettingsStorage();
-        storage.SetValue("serverlist", JsonConvert.SerializeObject(expected));
+        var storage = new InMemoryStateStorage();
+        storage.SaveServers(new[] { TestData.CreateServer("uk1", 15, "online") });
         var logger = new RecordingLogger();
         var service = new ServerService(repository, storage, logger);
 
@@ -90,5 +85,21 @@ public class ServerServiceTests
         Assert.Equal("uk1", server.Name);
         Assert.Equal(15, server.Load);
         Assert.Equal("online", server.Status);
+    }
+
+    [Fact]
+    public async Task FetchAsyncUsesCombinedCountryAndProtocolQuery()
+    {
+        var repository = new RecordingServerRepository();
+        var storage = new InMemoryStateStorage();
+        var logger = new RecordingLogger();
+        var service = new ServerService(repository, storage, logger);
+
+        await service.FetchAsync(countryId: 74, protocolId: 5, CancellationToken.None);
+
+        var query = Assert.Single(repository.Queries);
+        Assert.Equal(74, query.CountryId);
+        Assert.Equal(5, query.ProtocolId);
+        Assert.Equal("Saved servers for country 74 and protocol 5. Total servers: 0", Assert.Single(logger.Actions));
     }
 }
