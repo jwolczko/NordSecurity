@@ -287,3 +287,11 @@ mono_crash.*
 !Directory.Packages.props
 !global.json
 !nuget.config
+
+
+*.aux
+*.out
+*.pdf
+*.synctex.gz
+*.gz
+*.tex
