@@ -1,9 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.1000
+# Visual Studio Version 18
+VisualStudioVersion = 18.6.11819.183 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "partycli", "partycli\partycli.csproj", "{11C107BC-835A-44CD-A119-7CB195AB8825}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{66D404D8-36AB-4F97-883F-40F6688E71FF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "party.cli.Tests", "party.cli.Tests\party.cli.Tests.csproj", "{56D7E414-F355-4C66-83EA-B0206389309F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,9 +19,16 @@ Global
 		{11C107BC-835A-44CD-A119-7CB195AB8825}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{11C107BC-835A-44CD-A119-7CB195AB8825}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{11C107BC-835A-44CD-A119-7CB195AB8825}.Release|Any CPU.Build.0 = Release|Any CPU
+		{56D7E414-F355-4C66-83EA-B0206389309F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{56D7E414-F355-4C66-83EA-B0206389309F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{56D7E414-F355-4C66-83EA-B0206389309F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{56D7E414-F355-4C66-83EA-B0206389309F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{56D7E414-F355-4C66-83EA-B0206389309F} = {66D404D8-36AB-4F97-883F-40F6688E71FF}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {73338F4E-0A1F-445F-B7B5-291CF8190A23}
