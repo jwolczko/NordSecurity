@@ -11,7 +11,7 @@ public class SettingsStorageTests
     public void GetValueWhenFileDoesNotExistCreatesDefaultFileAndReturnsEmptyString()
     {
         var directoryPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
-        var filePath = Path.Combine(directoryPath, "appsettings.json");
+        var filePath = Path.Combine(directoryPath, "partycli-state.json");
         var storage = new SettingsStorage(filePath);
 
         var value = storage.GetValue("serverlist");
@@ -77,7 +77,7 @@ public class SettingsStorageTests
 
             var exception = Assert.Throws<InvalidOperationException>(() => storage.GetValue("serverlist"));
 
-            Assert.Equal("Couldn't read setting 'serverlist' from appsettings.json.", exception.Message);
+            Assert.Equal("Couldn't read setting 'serverlist' from state storage.", exception.Message);
         }
         finally
         {

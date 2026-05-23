@@ -11,7 +11,7 @@ public class SettingsStorage : ISettingsStorage
     private readonly string filePath;
 
     public SettingsStorage()
-        : this(Path.Combine(AppContext.BaseDirectory, "appsettings.json"))
+        : this(Path.Combine(AppContext.BaseDirectory, "partycli-state.json"))
     {
     }
 
@@ -32,7 +32,7 @@ public class SettingsStorage : ISettingsStorage
         }
         catch (Exception exception)
         {
-            throw new InvalidOperationException($"Couldn't read setting '{name}' from appsettings.json.", exception);
+            throw new InvalidOperationException($"Couldn't read setting '{name}' from state storage.", exception);
         }
     }
 
@@ -47,7 +47,7 @@ public class SettingsStorage : ISettingsStorage
         }
         catch (Exception exception)
         {
-            throw new InvalidOperationException($"Couldn't save setting '{name}' to appsettings.json.", exception);
+            throw new InvalidOperationException($"Couldn't save setting '{name}' to state storage.", exception);
         }
     }
 

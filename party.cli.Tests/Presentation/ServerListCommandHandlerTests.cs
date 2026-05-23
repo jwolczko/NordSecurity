@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using party.cli.Tests.TestHelpers;
+using partycli.Infrastructure.NordVpn;
 using partycli.Presentation.Cli;
 
 namespace party.cli.Tests.Presentation;
@@ -11,10 +12,10 @@ public class ServerListCommandHandlerTests
     public async Task HandleAsyncWhenMultipleSourcesAreSelectedReturnsErrorWithoutCallingService()
     {
         var service = new StubServerService();
-        var handler = new ServerListCommandHandler(service, new ConsoleOutput());
+        var handler = CreateHandler(service);
         using var console = new ConsoleCapture();
 
-        var result = await handler.HandleAsync(local: true, countryId: 74, protocolId: null, CancellationToken.None);
+        var result = await handler.HandleAsync(local: true, country: "france", protocol: null, CancellationToken.None);
 
         Assert.Equal(1, result);
         Assert.False(service.GetLocalCalled);
@@ -26,10 +27,10 @@ public class ServerListCommandHandlerTests
     public async Task HandleAsyncWhenLocalStorageIsEmptyReturnsError()
     {
         var service = new StubServerService();
-        var handler = new ServerListCommandHandler(service, new ConsoleOutput());
+        var handler = CreateHandler(service);
         using var console = new ConsoleCapture();
 
-        var result = await handler.HandleAsync(local: true, countryId: null, protocolId: null, CancellationToken.None);
+        var result = await handler.HandleAsync(local: true, country: null, protocol: null, CancellationToken.None);
 
         Assert.Equal(1, result);
         Assert.True(service.GetLocalCalled);
@@ -43,10 +44,10 @@ public class ServerListCommandHandlerTests
         {
             RemoteServers = new[] { TestData.CreateServer("fr1", 18, "online") }
         };
-        var handler = new ServerListCommandHandler(service, new ConsoleOutput());
+        var handler = CreateHandler(service);
         using var console = new ConsoleCapture();
 
-        var result = await handler.HandleAsync(local: false, countryId: 74, protocolId: null, CancellationToken.None);
+        var result = await handler.HandleAsync(local: false, country: "france", protocol: null, CancellationToken.None);
 
         Assert.Equal(0, result);
         Assert.Equal(74, service.LastCountryId);
@@ -60,7 +61,7 @@ public class ServerListCommandHandlerTests
         {
             RemoteServers = new[] { TestData.CreateServer() }
         };
-        var handler = new ServerListCommandHandler(service, new ConsoleOutput());
+        var handler = CreateHandler(service);
         using var console = new ConsoleCapture();
 
         await handler.HandleLegacyAsync(local: false, france: true, tcp: false, CancellationToken.None);
@@ -70,10 +71,72 @@ public class ServerListCommandHandlerTests
         {
             RemoteServers = new[] { TestData.CreateServer() }
         };
-        handler = new ServerListCommandHandler(service, new ConsoleOutput());
+        handler = CreateHandler(service);
 
         await handler.HandleLegacyAsync(local: false, france: false, tcp: true, CancellationToken.None);
         Assert.Equal(5, service.LastProtocolId);
+    }
+
+    [Fact]
+    public async Task HandleAsyncWhenProtocolNameIsUsedFetchesServersByMappedProtocolId()
+    {
+        var service = new StubServerService
+        {
+            RemoteServers = new[] { TestData.CreateServer("tcp1", 11, "online") }
+        };
+        var handler = CreateHandler(service);
+        using var console = new ConsoleCapture();
+
+        var result = await handler.HandleAsync(local: false, country: null, protocol: "TCP", CancellationToken.None);
+
+        Assert.Equal(0, result);
+        Assert.Equal(5, service.LastProtocolId);
+        Assert.Contains("Name: tcp1, Load: 11, Status: online", console.Output.ToString());
+    }
+
+    [Fact]
+    public async Task HandleAsyncWhenCountryNameIsUsedFetchesServersByMappedCountryId()
+    {
+        var service = new StubServerService
+        {
+            RemoteServers = new[] { TestData.CreateServer("fr1", 11, "online") }
+        };
+        var handler = CreateHandler(service);
+        using var console = new ConsoleCapture();
+
+        var result = await handler.HandleAsync(local: false, country: "france", protocol: null, CancellationToken.None);
+
+        Assert.Equal(0, result);
+        Assert.Equal(74, service.LastCountryId);
+        Assert.Contains("Name: fr1, Load: 11, Status: online", console.Output.ToString());
+    }
+
+    [Fact]
+    public async Task HandleAsyncWhenUnsupportedCountryIsUsedReturnsFriendlyError()
+    {
+        var service = new StubServerService();
+        var handler = CreateHandler(service);
+        using var console = new ConsoleCapture();
+
+        var result = await handler.HandleAsync(local: false, country: "atlantis", protocol: null, CancellationToken.None);
+
+        Assert.Equal(1, result);
+        Assert.Null(service.LastCountryId);
+        Assert.Contains("Error: Unsupported country 'atlantis'. Supported countries:", console.Error.ToString());
+    }
+
+    [Fact]
+    public async Task HandleAsyncWhenUnsupportedProtocolIsUsedReturnsFriendlyError()
+    {
+        var service = new StubServerService();
+        var handler = CreateHandler(service);
+        using var console = new ConsoleCapture();
+
+        var result = await handler.HandleAsync(local: false, country: null, protocol: "PPTP", CancellationToken.None);
+
+        Assert.Equal(1, result);
+        Assert.Null(service.LastProtocolId);
+        Assert.Contains("Error: Unsupported protocol 'PPTP'. Supported protocols:", console.Error.ToString());
     }
 
     [Fact]
@@ -83,12 +146,17 @@ public class ServerListCommandHandlerTests
         {
             ExceptionToThrow = new InvalidOperationException("request failed")
         };
-        var handler = new ServerListCommandHandler(service, new ConsoleOutput());
+        var handler = CreateHandler(service);
         using var console = new ConsoleCapture();
 
-        var result = await handler.HandleAsync(local: false, countryId: null, protocolId: null, CancellationToken.None);
+        var result = await handler.HandleAsync(local: false, country: null, protocol: null, CancellationToken.None);
 
         Assert.Equal(1, result);
         Assert.Contains("Error: request failed", console.Error.ToString());
+    }
+
+    private static ServerListCommandHandler CreateHandler(StubServerService service)
+    {
+        return new ServerListCommandHandler(service, new ConsoleOutput(), new NordVpnServerFilterCatalog());
     }
 }

@@ -9,16 +9,18 @@ namespace partycli.Presentation.Cli;
 
 public class ServerListCommandHandler
 {
-    private const int FranceCountryId = 74;
-    private const int TcpProtocolId = 5;
-
     private readonly IServerService serverService;
     private readonly ConsoleOutput consoleOutput;
+    private readonly IServerFilterCatalog filterCatalog;
 
-    public ServerListCommandHandler(IServerService serverService, ConsoleOutput consoleOutput)
+    public ServerListCommandHandler(
+        IServerService serverService,
+        ConsoleOutput consoleOutput,
+        IServerFilterCatalog filterCatalog)
     {
         this.serverService = serverService;
         this.consoleOutput = consoleOutput;
+        this.filterCatalog = filterCatalog;
     }
 
     public Task<int> HandleLegacyAsync(
@@ -27,24 +29,32 @@ public class ServerListCommandHandler
         bool tcp,
         CancellationToken cancellationToken)
     {
-        int? countryId = france ? FranceCountryId : null;
-        int? protocolId = tcp ? TcpProtocolId : null;
+        var country = france ? "france" : null;
+        var protocol = tcp ? "TCP" : null;
 
-        return HandleAsync(local, countryId, protocolId, cancellationToken);
+        return HandleAsync(local, country, protocol, cancellationToken);
     }
 
     public async Task<int> HandleAsync(
         bool local,
-        int? countryId,
-        int? protocolId,
+        string country,
+        string protocol,
         CancellationToken cancellationToken)
     {
         try
         {
-            if (!IsValidQuery(local, countryId, protocolId))
+            var selectedSources = CountSelectedSources(local, country, protocol);
+
+            if (selectedSources > 1)
             {
                 consoleOutput.WriteError("Use only one server source at a time.");
 
+                return 1;
+            }
+
+            if (!TryResolveCountryId(country, out var countryId) ||
+                !TryResolveProtocolId(protocol, out var protocolId))
+            {
                 return 1;
             }
 
@@ -93,7 +103,49 @@ public class ServerListCommandHandler
         return serverService.FetchAllAsync(cancellationToken);
     }
 
-    private static bool IsValidQuery(bool local, int? countryId, int? protocolId)
+    private bool TryResolveCountryId(string country, out int? countryId)
+    {
+        countryId = null;
+
+        if (string.IsNullOrWhiteSpace(country))
+        {
+            return true;
+        }
+
+        if (filterCatalog.TryGetCountryId(country, out var resolvedCountryId))
+        {
+            countryId = resolvedCountryId;
+
+            return true;
+        }
+
+        consoleOutput.WriteError($"Unsupported country '{country}'. Supported countries: {filterCatalog.GetSupportedCountries()}.");
+
+        return false;
+    }
+
+    private bool TryResolveProtocolId(string protocol, out int? protocolId)
+    {
+        protocolId = null;
+
+        if (string.IsNullOrWhiteSpace(protocol))
+        {
+            return true;
+        }
+
+        if (filterCatalog.TryGetProtocolId(protocol, out var resolvedProtocolId))
+        {
+            protocolId = resolvedProtocolId;
+
+            return true;
+        }
+
+        consoleOutput.WriteError($"Unsupported protocol '{protocol}'. Supported protocols: {filterCatalog.GetSupportedProtocols()}.");
+
+        return false;
+    }
+
+    private static int CountSelectedSources(bool local, string country, string protocol)
     {
         var selectedSources = 0;
 
@@ -102,16 +154,16 @@ public class ServerListCommandHandler
             selectedSources++;
         }
 
-        if (countryId.HasValue)
+        if (!string.IsNullOrWhiteSpace(country))
         {
             selectedSources++;
         }
 
-        if (protocolId.HasValue)
+        if (!string.IsNullOrWhiteSpace(protocol))
         {
             selectedSources++;
         }
 
-        return selectedSources <= 1;
+        return selectedSources;
     }
 }

@@ -6,14 +6,6 @@ public class VpnServerQuery
 
     public int? CountryId { get; set; }
 
-    public int? CityId { get; set; }
-
-    public int? RegionId { get; set; }
-
-    public int? SpecificServerId { get; set; }
-
-    public int? ServerGroupId { get; set; }
-
     public static VpnServerQuery All()
     {
         return new VpnServerQuery();

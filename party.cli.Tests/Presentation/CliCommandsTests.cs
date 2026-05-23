@@ -1,4 +1,5 @@
 using party.cli.Tests.TestHelpers;
+using partycli.Infrastructure.NordVpn;
 using partycli.Presentation.Cli;
 using System.CommandLine;
 
@@ -22,7 +23,7 @@ public class CliCommandsTests
         var configService = new StubConfigService();
         using var console = new ConsoleCapture();
         var rootCommand = CliCommands.Create(
-            new ServerListCommandHandler(new StubServerService(), new ConsoleOutput()),
+            CreateServerListCommandHandler(new StubServerService()),
             new ConfigCommandHandler(configService, new ConsoleOutput()));
 
         var result = await rootCommand.Parse(["config", "server-list", "value.json"]).InvokeAsync();
@@ -41,19 +42,42 @@ public class CliCommandsTests
         };
         using var console = new ConsoleCapture();
         var rootCommand = CliCommands.Create(
-            new ServerListCommandHandler(serverService, new ConsoleOutput()),
+            CreateServerListCommandHandler(serverService),
             new ConfigCommandHandler(new StubConfigService(), new ConsoleOutput()));
 
-        var result = await rootCommand.Parse(["servers", "list", "--country-id", "74"]).InvokeAsync();
+        var result = await rootCommand.Parse(["servers", "list", "--country", "france"]).InvokeAsync();
 
         Assert.Equal(0, result);
         Assert.Equal(74, serverService.LastCountryId);
     }
 
+    [Fact]
+    public async Task CreateServersListCommandInvokesProtocolHandler()
+    {
+        var serverService = new StubServerService
+        {
+            RemoteServers = new[] { TestData.CreateServer("tcp1", 20, "online") }
+        };
+        using var console = new ConsoleCapture();
+        var rootCommand = CliCommands.Create(
+            CreateServerListCommandHandler(serverService),
+            new ConfigCommandHandler(new StubConfigService(), new ConsoleOutput()));
+
+        var result = await rootCommand.Parse(["servers", "list", "--protocol", "TCP"]).InvokeAsync();
+
+        Assert.Equal(0, result);
+        Assert.Equal(5, serverService.LastProtocolId);
+    }
+
     private static RootCommand CreateRootCommand()
     {
         return CliCommands.Create(
-            new ServerListCommandHandler(new StubServerService(), new ConsoleOutput()),
+            CreateServerListCommandHandler(new StubServerService()),
             new ConfigCommandHandler(new StubConfigService(), new ConsoleOutput()));
+    }
+
+    private static ServerListCommandHandler CreateServerListCommandHandler(StubServerService serverService)
+    {
+        return new ServerListCommandHandler(serverService, new ConsoleOutput(), new NordVpnServerFilterCatalog());
     }
 }

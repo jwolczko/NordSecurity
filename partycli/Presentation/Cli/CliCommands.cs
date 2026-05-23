@@ -45,20 +45,20 @@ public static class CliCommands
         var serversCommand = new Command("servers", "Manage NordVPN servers");
         var listCommand = new Command("list", "Fetch, save and display NordVPN servers");
         var localOption = new Option<bool>("--local") { Description = "Display servers saved locally" };
-        var countryIdOption = new Option<int?>("--country-id") { Description = "Fetch servers by NordVPN country id" };
-        var protocolIdOption = new Option<int?>("--protocol-id") { Description = "Fetch servers by NordVPN protocol id" };
+        var countryOption = new Option<string>("--country") { Description = "Fetch servers by country name, for example france" };
+        var protocolOption = new Option<string>("--protocol") { Description = "Fetch servers by protocol name, for example TCP" };
 
         listCommand.Options.Add(localOption);
-        listCommand.Options.Add(countryIdOption);
-        listCommand.Options.Add(protocolIdOption);
+        listCommand.Options.Add(countryOption);
+        listCommand.Options.Add(protocolOption);
 
         listCommand.SetAction((parseResult, cancellationToken) =>
         {
             var local = parseResult.GetValue(localOption);
-            var countryId = parseResult.GetValue(countryIdOption);
-            var protocolId = parseResult.GetValue(protocolIdOption);
+            var country = parseResult.GetValue(countryOption);
+            var protocol = parseResult.GetValue(protocolOption);
 
-            return handler.HandleAsync(local, countryId, protocolId, cancellationToken);
+            return handler.HandleAsync(local, country, protocol, cancellationToken);
         });
 
         serversCommand.Subcommands.Add(listCommand);

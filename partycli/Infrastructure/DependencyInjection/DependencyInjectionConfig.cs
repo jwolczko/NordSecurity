@@ -33,6 +33,7 @@ public static class DependencyInjectionConfig
     {
         services.AddSingleton<HttpClient>();
         services.AddSingleton<ISettingsStorage, SettingsStorage>();
+        services.AddSingleton<IServerFilterCatalog, NordVpnServerFilterCatalog>();
         services.AddSingleton<IServerRepository>(serviceProvider =>
         {
             var httpClient = serviceProvider.GetRequiredService<HttpClient>();
