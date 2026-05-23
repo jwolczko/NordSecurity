@@ -45,37 +45,39 @@ Currently this console application has following functions:
 
 ### Refactoring Goal
 
-The original version of the application kept most of its logic inside `Program.cs`. A single class was responsible for argument parsing, calling the NordVPN API, saving configuration, logging actions, deserializing JSON, and printing results to the console. This structure made the application harder to extend, harder to test, and harder to adapt to future requirements.
+The first version of the application was small, but too much work happened in `Program.cs`. Argument parsing, NordVPN API calls, JSON handling, logging, persistence, and console output were all tied together in one entry point. That was acceptable for a short exercise, but it would quickly become awkward once new commands, filters, output formats, or storage options were added.
 
-The goal of the refactoring was to introduce a lightweight Clean Architecture-inspired structure, preserve the existing CLI behavior, and prepare the codebase for further development.
+The refactoring keeps the application lightweight while giving it a clearer structure. The code is now easier to navigate, easier to test, and better prepared for small future changes without turning the CLI into an over-engineered solution.
 
 ### Main Changes
 
-1. **Simplified `Program.cs`**
+1. **Smaller `Program.cs`**
 
-   `Program.cs` now uses a classic structure with a `Main` method. The `Main` method no longer contains business logic. Its only responsibility is to build the dependency injection container, resolve the root CLI command, and invoke the command-line parser.
+   `Program.cs` now acts only as the application entry point. The `Main` method builds the dependency injection container, resolves the root command, and starts command parsing. NordVPN-specific behavior and command handling live outside of `Main`.
 
-2. **Introduced Application Layers**
+2. **Clearer project structure**
 
-   The code was split into several logical areas:
+   The code is grouped into a few focused areas:
 
-   - `Domain` - domain models such as `Server`, `LogEntry`, and `VpnServerQuery`.
-   - `Application` - application interfaces and services such as `ServerService` and `LoggerService`.
-   - `Infrastructure` - technical implementations such as the NordVPN API client, configuration loading, and JSON state storage.
-   - `Presentation/Cli` - CLI command definitions, command handlers, and console output.
+   - `Domain` - simple models such as `Server`, `LogEntry`, and `VpnServerQuery`.
+   - `Application` - application services and interfaces.
+   - `Infrastructure` - NordVPN API access, configuration, filter mapping, and JSON state storage.
+   - `Presentation/Cli` - command definitions, handlers, and console output.
 
-3. **Replaced Manual Argument Parsing with `System.CommandLine`**
+   This is a lightweight Clean Architecture-style split, not a heavy framework around a small console app.
 
-   The manual state machine based on `if` statements and direct iteration over `args` was replaced with `System.CommandLine`. This gives the application clearer command definitions, built-in `--help` support, validation, and a better foundation for future CLI growth.
+3. **Command parsing with `System.CommandLine`**
 
-   Existing commands were preserved:
+   Manual argument parsing was replaced with `System.CommandLine`. Command definitions are easier to read, and help output is handled by the library.
+
+   The old command style is still supported:
 
    - `partycli server_list`
    - `partycli server_list --france`
    - `partycli server_list --TCP`
    - `partycli server_list --local`
 
-   A more extensible command structure was also added:
+   A newer, more explicit command style is also available:
 
    - `partycli servers list`
    - `partycli servers list --country france`
@@ -83,15 +85,13 @@ The goal of the refactoring was to introduce a lightweight Clean Architecture-in
    - `partycli servers list --country france --protocol TCP`
    - `partycli servers list --local`
 
-4. **Added Dependency Injection**
+4. **Dependency injection**
 
-   The project now uses `Microsoft.Extensions.DependencyInjection`. Dependency registration was moved to `DependencyInjectionConfig`. The container creates application services, repositories, configuration objects, CLI handlers, and the root `RootCommand`.
+   Object creation was moved to `DependencyInjectionConfig`, using `Microsoft.Extensions.DependencyInjection`. Services now receive their dependencies through constructors, which keeps classes simpler and makes them easier to test.
 
-   This makes classes depend on abstractions instead of concrete implementations and improves testability.
+5. **Configuration and runtime state**
 
-5. **Migrated from `App.config` and `Properties.Settings` to JSON files**
-
-   The old settings mechanism based on `App.config`, `Settings.settings`, and `Settings.Designer.cs` was removed. Static application configuration is now stored in `appsettings.json`, while runtime state is stored separately in `partycli-state.json`.
+   The old `App.config` and `Properties.Settings` setup was removed. Static configuration is stored in `appsettings.json`, while runtime data is stored separately in `partycli-state.json`.
 
    `appsettings.json` contains:
 
@@ -99,55 +99,54 @@ The goal of the refactoring was to introduce a lightweight Clean Architecture-in
 
    `partycli-state.json` contains:
 
-   - the stored server list,
-   - stored application logs.
+   - the last stored server list,
+   - application log entries.
 
-6. **Moved Endpoints to Configuration**
+   This keeps application configuration separate from data created while the program is running.
 
-   The `https://api.nordvpn.com/v1/servers` URL is no longer hardcoded in the repository class. It was moved to `appsettings.json`, and `NordVpnServerRepository` receives it through its constructor. Changing the API endpoint no longer requires modifying repository code.
+6. **Endpoint moved out of code**
 
-7. **Separated Responsibilities**
+   The NordVPN API URL is no longer hardcoded in the repository. `NordVpnServerRepository` receives the endpoint from configuration, so changing the API address does not require changing repository code.
 
-   The logic was split into smaller classes:
+7. **User-friendly filters**
 
-   - `NordVpnServerRepository` handles only NordVPN API communication.
-   - `NordVpnServerFilterCatalog` maps user-friendly filter names to NordVPN API identifiers.
-   - `JsonStateStorage` handles only JSON runtime-state persistence.
-   - `ServerService` handles server-list use cases.
-   - `LoggerService` handles action logging.
-   - `CliCommands` defines the CLI command structure.
-   - `ServerListCommandHandler` handles user actions for server-list commands.
-   - `ConsoleOutput` centralizes console output.
+   The CLI no longer exposes NordVPN numeric identifiers. Users can pass readable values such as:
 
-8. **Introduced Asynchronous API Calls**
+   - `--country france`
+   - `--protocol TCP`
 
-   API calls now use `async`/`await`. Blocking calls such as `.Result` were removed, which improves scalability and avoids common async-related issues.
+   `NordVpnServerFilterCatalog` maps those values to the identifiers expected by the NordVPN API.
 
-9. **Improved String Readability**
+8. **Typed JSON state storage**
 
-   String concatenation was replaced with string interpolation, for example `$"Total servers: {servers.Count}"`. This makes messages easier to read and maintain.
+   Runtime persistence is handled by `JsonStateStorage`. Application services work with typed models instead of manually serializing and deserializing JSON. The storage also understands the previous state-file format, so older local data can still be read.
 
-10. **Added Tests**
+9. **Asynchronous API calls**
 
-    The repository contains a `party.cli.Tests` project with tests for the application, infrastructure, and presentation layers. The tests cover application services, CLI handlers, configuration loading, state storage, and the NordVPN repository.
+   HTTP calls now use `async`/`await`. Blocking calls such as `.Result` were removed.
 
-11. **Removed Legacy Project Metadata**
+10. **Cleaner strings**
 
-    The SDK-style project no longer keeps manual assembly metadata in `AssemblyInfo.cs`. Version metadata is now defined in the project file, which reduces legacy project scaffolding.
+    Plain string concatenation was replaced with interpolation where it made the code easier to read, for example `$"Total servers: {servers.Count}"`.
+
+11. **Tests**
+
+    The `party.cli.Tests` project covers the main application paths: services, CLI handlers, configuration loading, state storage, and the NordVPN repository. It also checks combined country and protocol filtering.
+
+12. **Removed unnecessary pieces**
+
+    The `config` command was removed because runtime state is now managed by a dedicated storage component. The manually maintained `AssemblyInfo.cs` file was also removed, with version metadata kept in the SDK-style project file instead.
 
 ### Before and After
 
-| Before Refactoring | After Refactoring |
-| --- | --- |
-| Most logic lived in `Program.cs`. | `Program.cs` only starts the application. |
-| Arguments were parsed manually. | Arguments are parsed by `System.CommandLine`. |
-| The API endpoint was hardcoded. | The endpoint is stored in `appsettings.json`. |
-| Configuration used `App.config` and `Properties.Settings`. | Configuration uses `appsettings.json`, while persisted runtime state uses `partycli-state.json`. |
-| Responsibilities were mixed together. | Code is split into `Domain`, `Application`, `Infrastructure`, and `Presentation`. |
-| Dependencies were created directly in `Program.cs`. | Dependencies are registered in a DI container. |
-| HTTP calls used blocking `.Result`. | HTTP calls use `async`/`await`. |
-| Testing individual parts was harder. | Classes depend on interfaces and are easier to test. |
+- Instead of keeping most logic in `Program.cs`, the file now only starts the application.
+- Instead of manual argument parsing, commands are handled by `System.CommandLine`.
+- Instead of a hardcoded API URL, the endpoint is stored in `appsettings.json`.
+- Instead of mixing configuration with runtime data, the application uses `appsettings.json` and `partycli-state.json`.
+- Instead of exposing country and protocol IDs in the CLI, users provide names such as `france` and `TCP`.
+- Instead of serializing JSON directly in services, state persistence is handled by `JsonStateStorage`.
+- Instead of blocking HTTP calls, the code uses `async`/`await`.
 
-### Final Result
+### Result
 
-The application keeps its original behavior while becoming more modular, readable, and ready for future changes. Adding a new command, replacing the storage provider, changing the API, or modifying console output can now be done in focused, well-separated parts of the codebase instead of one large `Main` method.
+The application keeps the same core behavior, but the code is no longer concentrated in one file. Adding a new filter, changing the API, replacing storage, or adjusting console output can now be done in focused parts of the codebase.
